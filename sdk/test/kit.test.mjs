@@ -10,14 +10,14 @@ import { gzipSync } from "node:zlib";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { checkOutput, checkSettingsOutput, contract, markSearchHits, requiredExports, validateManifest } from "../contract.mjs";
+import { checkOutput, checkSettingsOutput, contract, markSearchHits, requiredExports, segmentSkip, segmentsAnswer, validateManifest } from "../contract.mjs";
 import { createKino, errorReport, shownSentence, signingLane } from "../kino-shim.mjs";
 import { filterRelevant, shortQuery, sortBySimilarity } from "../kino-rank.mjs";
 import { contrast, deltaE, formatRatio, luminance, resolvePalette } from "../palette.mjs";
 import { consentLines, KEY_PAIRS_OLD_API, validate } from "../validate.mjs";
 import { TABLES } from "../guide-tables.mjs";
 import { scaffold } from "../init.mjs";
-import { adultLines, call, parseArgs, subtitlesArg } from "../run.mjs";
+import { adultLines, call, parseArgs, segmentsArg, subtitlesArg } from "../run.mjs";
 import { decodeCipherKey, normalizeBinding, seal, sealTyped } from "../seal.mjs";
 import { ADULT_GROUPS, OPEN_END_MS, decodeM3u, keepStart, loadPlaylist, normaliseName, parseM3u, parseXmltv, parseXmltvTime, summarisePlaylist, summaryLines } from "../live-playlist.mjs";
 
@@ -33,7 +33,7 @@ test("contract.json is the one the app pins", () => {
   assert.equal(contract.apiVersion, 7);
   // apiVersion 5 stays what Kino 0.9.45 made it: the author-signed entry, nothing else.
   assert.equal(contract.manifest.signature.apiVersion, 5);
-  assert.deepEqual(contract.capabilities.names, ["search", "home", "browse", "episodes", "resolve", "download", "drm", "channels", "migrate", "scopedSearch", "meta", "subtitles", "tracking"]);
+  assert.deepEqual(contract.capabilities.names, ["search", "home", "browse", "episodes", "resolve", "download", "drm", "channels", "migrate", "scopedSearch", "meta", "subtitles", "tracking", "segments"]);
   assert.deepEqual(contract.capabilities.declarative, ["download", "drm", "scopedSearch"]);
   assert.deepEqual(contract.permissions, []);
 });
@@ -3099,6 +3099,15 @@ test("below apiVersion 6 a stray confirm key on a setting is ignored, like the a
   }
 });
 
+// The app takes 300 characters for a section's explanation (PluginSettings.MAX_SECTION_HINT_CHARS, Kino 0.9.51) and 80
+// for any other hint; the kit refused a section over 80, so a manifest the app installs failed validate.mjs.
+test("a section's hint may be 300 characters, any other hint 80", () => {
+  const base = (settings) => manifest({ apiVersion: 6, settings });
+  assert.equal(validateManifest(base([{ key: "intro", label: "Intro", type: "section", hint: "x".repeat(300) }])).ok, true);
+  assert.equal(validateManifest(base([{ key: "intro", label: "Intro", type: "section", hint: "x".repeat(301) }])).message, 'La ayuda del ajuste "intro" pasa de 300 caracteres');
+  assert.equal(validateManifest(base([{ key: "user", label: "Usuario", type: "text", hint: "x".repeat(81) }])).message, 'La ayuda del ajuste "user" pasa de 80 caracteres');
+});
+
 test("section, status and action settings (apiVersion 6)", () => {
   const base = (api, settings) => manifest({ apiVersion: api, settings });
   const section = { key: "account", label: "Tu cuenta", type: "section", hint: "Opcional" };
@@ -3818,6 +3827,69 @@ test("tracking: apiVersion 7, standalone, its red consent line naming the hosts,
     const val = spawnSync(process.execPath, [join(here, "..", "validate.mjs"), dir], { encoding: "utf8" });
     assert.equal(val.status, 0, val.stderr + val.stdout);
     assert.match(val.stdout + val.stderr, /Le contará a seenr\.app/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// apiVersion 7's segments: a capability that plays nothing, a plain consent line (no approval), and the answer judged
+// entry by entry exactly as the app's Segments.parse does (SegmentsTest pins the same vectors).
+test("segments: apiVersion 7, standalone, plain consent line, and each bad entry dropped on its own", () => {
+  const v = (extra, api = 7) => validateManifest(manifest({ apiVersion: api, ...extra }));
+  assert.equal(v({ capabilities: ["segments"] }).ok, true);
+  assert.equal(v({ capabilities: ["segments", "subtitles", "tracking"] }).ok, true);
+  assert.deepEqual(v({ capabilities: ["segments"] }, 6), { ok: false, field: "capabilities", message: "Esta capacidad necesita apiVersion 7" });
+  assert.deepEqual(requiredExports(["segments"]), ["segments"]);
+  assert.equal(contract.capabilities.needsApproval.includes("segments"), false);
+  assert.deepEqual(consentLines(v({ capabilities: ["segments"] }).manifest), [{ text: "Agrega el botón para saltar la intro y los créditos", danger: false }]);
+
+  const drops = [];
+  const kept = segmentsAnswer([
+    { type: "intro", startMs: 60000, endMs: 150000 },
+    { type: "intro", startMs: 100000, endMs: 170000 },            // overlaps the first intro
+    { type: "recap", startMs: 0, endMs: 60000 },
+    { type: "credits", startMs: 1300000, endMs: 1442000 },        // cut to the length
+    { type: "outro", startMs: 1300000, endMs: 1500000 },          // ends far past the file
+    { type: "preview", startMs: 1450000, endMs: 1460000 },        // starts past the file
+    { type: "opening", startMs: 1, endMs: 5000 },                 // unknown type
+    { type: "intro", startMs: "1", endMs: 5000 },                 // not a number
+    { type: "intro", startMs: 2000.5, endMs: 5000 },              // not whole ms
+    { type: "intro", startMs: -5, endMs: 5000 },
+    { type: "outro", startMs: 900000, endMs: 900500 },            // too short
+    null, [], "intro",
+  ], 1440000, (d) => drops.push(d));
+  assert.deepEqual(kept, [
+    { type: "recap", startMs: 0, endMs: 60000 },
+    { type: "intro", startMs: 60000, endMs: 150000 },
+    { type: "credits", startMs: 1300000, endMs: 1440000 },
+  ]);
+  assert.equal(drops.length, 11);
+  assert.deepEqual(segmentSkip(kept), { openingStartMs: 60000, openingEndMs: 150000, endingStartMs: 1300000 });
+  assert.deepEqual(segmentsAnswer({ intro: [0, 1] }, 0, () => {}), []);
+  assert.deepEqual(segmentsAnswer(null, 0, () => { throw new Error("null is no drop"); }), []);
+  const many = Array.from({ length: 150 }, (_, i) => ({ type: "recap", startMs: i * 10000, endMs: i * 10000 + 5000 }));
+  assert.equal(segmentsAnswer(many, 0).length, contract.segments.maxSegments);
+  assert.equal(segmentSkip([{ type: "recap", startMs: 0, endMs: 9000 }]), null);
+  // An ending that starts inside the opening is no ending.
+  assert.deepEqual(segmentSkip([{ type: "intro", startMs: 0, endMs: 90000 }, { type: "outro", startMs: 30000, endMs: 95000 }]), { openingStartMs: 0, openingEndMs: 90000, endingStartMs: null });
+});
+
+test("segments: run.mjs builds the app's query and prints what Kino keeps", () => {
+  assert.deepEqual(segmentsArg(["tt0133093", "8160000"]), { kind: "movie", ids: { imdb: "tt0133093" }, durationMs: 8160000 });
+  assert.deepEqual(segmentsArg(["tmdb:1396", "1", "2"]), { kind: "episode", ids: {}, show: { ids: { tmdb: 1396 } }, season: 1, episode: 2 });
+  assert.deepEqual(segmentsArg(["tmdb:1396", "1", "2", "2880000"]).durationMs, 2880000);
+  assert.throws(() => segmentsArg(["Breaking Bad"]));
+  const dir = mkdtempSync(join(tmpdir(), "kino-segments-"));
+  try {
+    writeFileSync(join(dir, "plugin.js"), "export async function segments(q){ return [{ type: 'intro', startMs: 1000, endMs: 61000, kind: q.kind }, { type: 'outro', startMs: q.durationMs - 1000, endMs: q.durationMs + 9000 }] }");
+    writeFileSync(join(dir, "kino-plugin.json"), manifest({ apiVersion: 7, capabilities: ["segments"], hosts: ["example.com"] }));
+    const r = spawnSync(process.execPath, [join(here, "..", "run.mjs"), dir, "segments", "tt0133093", "2000000"], { encoding: "utf8" });
+    assert.equal(r.status, 0, r.stderr);
+    assert.deepEqual(JSON.parse(r.stdout), [{ type: "intro", startMs: 1000, endMs: 61000 }]);
+    assert.match(r.stderr, /ends past the file's end/);
+    assert.match(r.stderr, /"openingEndMs":61000/);
+    const val = spawnSync(process.execPath, [join(here, "..", "validate.mjs"), dir], { encoding: "utf8" });
+    assert.equal(val.status, 0, val.stderr + val.stdout);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

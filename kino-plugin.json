@@ -1,7 +1,7 @@
 {
   "id": "seenr",
   "name": "Seenr",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "apiVersion": 7,
   "entry": "plugin.js",
   "description": "Marca en tu cuenta de Seenr lo que empiezas y terminas de ver en Kino. Necesita tu enlace personal de Seenr.",
@@ -15,11 +15,17 @@
   ],
   "settings": [
     {
+      "key": "howTo",
+      "label": "Cómo conseguir tu enlace",
+      "type": "section",
+      "hint": "1. Abre Seenr (la app o seenr.app) con tu cuenta. 2. Ve a Ajustes ▸ Seguimiento automático. 3. Elige Plex y copia tu enlace personal (empieza por https://seenr.app/api/v1/scrobble/plex/). 4. Pégalo abajo. No necesitas Plex. El enlace es secreto: no lo compartas."
+    },
+    {
       "key": "link",
       "label": "Tu enlace de Seenr",
       "type": "password",
       "required": true,
-      "hint": "En Seenr: Ajustes ▸ Auto-tracking ▸ Plex ▸ copia el enlace"
+      "hint": "Pega aquí el enlace de Plex que copiaste en Seenr"
     }
   ],
   "color": "#7C4DFF",

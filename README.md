@@ -6,11 +6,13 @@ Seenr is a free TV-Time-style tracker (series, movies, "up next", calendar). Thi
 
 ## Set it up (en español, lo que ve la persona)
 
-1. En Seenr: **Ajustes ▸ Auto-tracking ▸ Plex** y copia tu enlace personal
-   (`https://seenr.app/api/v1/scrobble/plex/…`). Es secreto: quien lo tenga puede marcar cosas en tu cuenta.
+1. En Seenr (la app o seenr.app, con tu cuenta): **Ajustes ▸ Seguimiento automático ▸ Plex** y copia tu enlace
+   personal (`https://seenr.app/api/v1/scrobble/plex/…`). No necesitas tener Plex: Kino usa ese enlace en su lugar.
+   Es secreto: quien lo tenga puede marcar cosas en tu cuenta.
 2. En Kino: **Plugins ▸ +** y pega `kinotvapp/kino-plugin-seenr`. La hoja de instalación dice, en rojo,
    "Le contará a seenr.app qué ves y cuándo lo terminas".
-3. En **Configurar**, pega el enlace (o solo el código del final). Se guarda sellado y viaja así a tus otros aparatos.
+3. En **Configurar** verás los mismos pasos bajo "Cómo conseguir tu enlace": pega el enlace (o solo el código del
+   final) en "Tu enlace de Seenr". Se guarda sellado y viaja así a tus otros aparatos.
 
 Para tener las filas de Seenr en Inicio (Siguiente, Watchlist, Para ti…), agrega además su addon de Stremio
 personal (Seenr ▸ Ajustes ▸ Stremio) en **Plugins ▸ + ▸ Stremio**: ese es el catálogo, este plugin es el aviso.

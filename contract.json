@@ -4,13 +4,13 @@
   "maxApiVersion": 7,
   "apiVersionFromApp": { "6": "0.9.50", "7": "0.9.51" },
   "capabilities": {
-    "names": ["search", "home", "browse", "episodes", "resolve", "download", "drm", "channels", "migrate", "scopedSearch", "meta", "subtitles", "tracking"],
+    "names": ["search", "home", "browse", "episodes", "resolve", "download", "drm", "channels", "migrate", "scopedSearch", "meta", "subtitles", "tracking", "segments"],
     "required": ["resolve"],
     "atLeastOneOf": ["search", "home"],
-    "standalone": ["subtitles", "tracking"],
+    "standalone": ["subtitles", "tracking", "segments"],
     "anyPluginExports": ["subtitles"],
     "declarative": ["download", "drm", "scopedSearch"],
-    "apiVersions": { "download": 2, "drm": 2, "channels": 3, "migrate": 6, "scopedSearch": 6, "meta": 6, "tracking": 7 },
+    "apiVersions": { "download": 2, "drm": 2, "channels": 3, "migrate": 6, "scopedSearch": 6, "meta": 6, "tracking": 7, "segments": 7 },
     "requires": { "scopedSearch": "search" },
     "requiresMessage": "La capacidad \"{capability}\" necesita también \"{requires}\"",
     "needsApproval": ["download", "drm", "channels", "migrate", "tracking"],
@@ -211,7 +211,8 @@
     "sign": 1500,
     "signTotal": 3000,
     "subtitles": 10000,
-    "track": 10000
+    "track": 10000,
+    "segments": 8000
   },
   "runtime": {
     "memoryBytes": 67108864,
@@ -288,6 +289,24 @@
     "idResolveTimeoutMs": 8000,
     "retryCodes": ["timeout", "network", "unavailable", "rate_limited"],
     "dropCodes": ["auth_required", "invalid_request", "not_found", "geo_blocked", "host_not_allowed", "too_large"]
+  },
+  "segments": {
+    "apiVersion": 7,
+    "capability": "segments",
+    "export": "segments",
+    "consentLine": "Agrega el botón para saltar la intro y los créditos",
+    "kinds": ["movie", "episode"],
+    "idKeys": ["imdb", "tmdb", "tvdb", "anilist", "mal"],
+    "types": ["intro", "outro", "recap", "credits", "preview"],
+    "openingTypes": ["intro"],
+    "endingTypes": ["outro", "credits"],
+    "minLengthMs": 1000,
+    "maxSegments": 10,
+    "maxEntriesRead": 100,
+    "endSlackMs": 5000,
+    "waitMs": 12000,
+    "durationBucketMs": 10000,
+    "failureRetryMs": 120000
   },
   "cookies": {
     "maxPerHost": 50,

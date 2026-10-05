@@ -52,6 +52,8 @@ export function consentLines(m, { authorFingerprint = null } = {}) {
   if (m.capabilities.includes("subtitles")) line("Agrega subtítulos a tus películas y series");
   // apiVersion 7 "tracking": in red, the plugin's declared hosts named (PluginConsent / Tracking.consentLine).
   if (m.capabilities.includes(contract.tracking.capability)) line(trackingConsentLine(m.hosts || []), true);
+  // apiVersion 7 "segments": a plain line, not red (it only learns which title plays): PluginConsent / Segments.CONSENT_LINE.
+  if (m.capabilities.includes(contract.segments.capability)) line(contract.segments.consentLine);
   if (m.secrets && Object.keys(m.secrets).length) line("Usa datos sellados por su autor");
   if (m.telemetry) line(m.telemetry === contract.manifest.telemetry.verbose.value ? contract.manifest.telemetry.verbose.consentLine : contract.manifest.telemetry.consentLine);
   if (authorFingerprint) line(contract.manifest.signature.consentLine);

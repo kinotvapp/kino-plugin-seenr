@@ -1,4 +1,4 @@
-// TypeScript declarations for Kino plugins (apiVersion 1 to 7; 7 adds tracking; apiVersion 5 only adds the manifest's signature, 6 the plain-plugin SDK: typed and larger secrets, migrate, signed streams, the settings form, debug, telemetry, section, categories, theme and scopedSearch). Reference them from plugin.js
+// TypeScript declarations for Kino plugins (apiVersion 1 to 7; 7 adds tracking and segments; apiVersion 5 only adds the manifest's signature, 6 the plain-plugin SDK: typed and larger secrets, migrate, signed streams, the settings form, debug, telemetry, section, categories, theme and scopedSearch). Reference them from plugin.js
 // with `/// <reference path="./kino.d.ts" />` for editor help; Kino itself runs plain JavaScript.
 // The numbers in the comments come from contract.json, which is authoritative. The app checks that
 // every `kino` member declared here exists in its runtime and nothing else does (KinoDtsTest).
@@ -469,17 +469,43 @@ interface KinoTrackingEvent {
  */
 type KinoTrackFn = (event: KinoTrackingEvent) => Promise<unknown>;
 
-/** A plugin that plays (`resolve` required, as above), optionally finding subtitles or tracking too. */
-interface KinoPlayingPlugin extends KinoPlugin { subtitles?: KinoSubtitlesFn; track?: KinoTrackFn }
+/**
+ * `segments(query)`'s argument (apiVersion 7, the "segments" capability): the title that started playing. For a movie `ids`
+ * are the movie's; for an episode `ids` are the EPISODE's own (maybe `{}`) and the show's are in `show.ids`.
+ */
+interface KinoSegmentsQuery {
+  kind: "movie" | "episode";
+  ids: KinoTrackingIds;
+  show?: { ids: KinoTrackingIds };
+  season?: number;
+  episode?: number;
+  /** The playing file's length: answer for that cut. */
+  durationMs?: number;
+}
 
-/** A subtitle provider: capabilities only "subtitles" (and maybe "tracking"), so `subtitles` is its export. */
-interface KinoSubtitleProvider { subtitles: KinoSubtitlesFn; track?: KinoTrackFn }
+/** One segment of the file, in whole ms. Kino uses `intro` and the first `outro`/`credits`; `recap` and `preview` have no button yet. */
+interface KinoSegment { type: "intro" | "outro" | "recap" | "credits" | "preview"; startMs: number; endMs: number }
 
-/** A tracker: capabilities only "tracking" (and maybe "subtitles"). */
-interface KinoTracker { track: KinoTrackFn; subtitles?: KinoSubtitlesFn }
+/**
+ * `segments` -- required with the capability "segments" (apiVersion 7). Each bad entry is dropped on its own (unknown type,
+ * not whole ms, under 1 s, past the file's end, overlapping one of its type); 10 kept. 8 s, a background call.
+ */
+type KinoSegmentsFn = (query: KinoSegmentsQuery) => Promise<KinoSegment[] | null>;
+
+/** A plugin that plays (`resolve` required, as above), optionally finding subtitles, tracking or segments too. */
+interface KinoPlayingPlugin extends KinoPlugin { subtitles?: KinoSubtitlesFn; track?: KinoTrackFn; segments?: KinoSegmentsFn }
+
+/** A subtitle provider: capabilities only "subtitles" (and maybe "tracking" or "segments"), so `subtitles` is its export. */
+interface KinoSubtitleProvider { subtitles: KinoSubtitlesFn; track?: KinoTrackFn; segments?: KinoSegmentsFn }
+
+/** A tracker: capabilities only "tracking" (and maybe "subtitles" or "segments"). */
+interface KinoTracker { track: KinoTrackFn; subtitles?: KinoSubtitlesFn; segments?: KinoSegmentsFn }
+
+/** A segment source: capabilities only "segments" (and maybe "subtitles" or "tracking"). */
+interface KinoSegmentSource { segments: KinoSegmentsFn; subtitles?: KinoSubtitlesFn; track?: KinoTrackFn }
 
 /** Your module's exports: one of these. */
-type KinoPluginModule = KinoPlayingPlugin | KinoSubtitleProvider | KinoTracker;
+type KinoPluginModule = KinoPlayingPlugin | KinoSubtitleProvider | KinoTracker | KinoSegmentSource;
 
 // ---------- the kino API ----------
 
