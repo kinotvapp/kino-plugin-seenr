@@ -1,7 +1,7 @@
 // node --test test/
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { payloadFor } from "../plugin.js";
+import { payloadFor, tokenFrom } from "../plugin.js";
 
 test("a movie start is media.play with its imdb and tmdb guids", () => {
   const p = payloadFor({ type: "start", kind: "movie", title: "Inception", year: 2010, ids: { imdb: "tt1375666", tmdb: 27205 }, durationMs: 8880000 });
@@ -39,4 +39,20 @@ test("nothing to name it by sends nothing", () => {
   assert.equal(payloadFor({ type: "start", kind: "movie", ids: { imdb: "tt1" } }), null);
   assert.equal(payloadFor({ type: "start", kind: "episode", season: 1, episode: 1, show: {} }), null);
   assert.equal(payloadFor({ type: "start", kind: "episode", show: { title: "X" } }), null);
+});
+
+test("a real Seenr link (an id, a bar shown as %7C, the secret) is read; so is the token alone or with a bare bar", () => {
+  const secret = "eCdlgv9puoef3l4n9Z7C7UHOswnlWrmmYbZwSchNde5b5cb9";
+  assert.equal(tokenFrom("https://seenr.app/api/v1/scrobble/plex/162119%7C" + secret), "162119|" + secret);
+  assert.equal(tokenFrom(" https://seenr.app/api/v1/scrobble/plex/162119|" + secret + "/ "), "162119|" + secret);
+  assert.equal(tokenFrom("162119|" + secret), "162119|" + secret);
+  assert.equal(tokenFrom("162119%7C" + secret), "162119|" + secret);
+  assert.equal(tokenFrom("abcdefgh12345678"), "abcdefgh12345678");
+});
+
+test("anything else is not a Seenr link", () => {
+  for (const bad of ["", "https://evil.example/api/v1/scrobble/plex/162119%7Cabcdefgh", "http://seenr.app/api/v1/scrobble/plex/162119%7Cabcdefgh",
+    "https://seenr.app/api/v1/scrobble/jellyfin/162119%7Cabcdefgh", "162119|short", "a b c d e f g h i", "%E0%A4%A"]) {
+    assert.equal(tokenFrom(bad), null, bad);
+  }
 });

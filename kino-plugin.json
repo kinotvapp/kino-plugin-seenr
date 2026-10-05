@@ -1,7 +1,7 @@
 {
   "id": "seenr",
   "name": "Seenr",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "apiVersion": 7,
   "entry": "plugin.js",
   "description": "Marca en tu cuenta de Seenr lo que empiezas y terminas de ver en Kino. Necesita tu enlace personal de Seenr.",

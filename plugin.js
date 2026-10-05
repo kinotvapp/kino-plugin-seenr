@@ -8,19 +8,35 @@
 // The trap Seenr's Plex route has: for an episode, `Metadata.Guid[]` must be the EPISODE's own ids. The show's ids there
 // check in on the wrong show, so an episode without ids of its own is sent with no Guid at all, by title and numbers.
 
-const SCROBBLE_PATH = /^\/api\/v1\/scrobble\/plex\/([A-Za-z0-9._~-]{8,200})\/?$/;
-const TOKEN_ONLY = /^[A-Za-z0-9._~-]{8,200}$/;
+// Seenr's tokens look like `162119|eCdlgv…`: an id, a bar, the secret (the link shows the bar as %7C).
+const TOKEN = /^[A-Za-z0-9._~-]{1,40}\|?[A-Za-z0-9._~-]{8,200}$/;
+const PLEX_PATH = "/api/v1/scrobble/plex/";
 
-// The webhook URL from what the person pasted: the whole link, or only its token. Anything else is a typo, said plainly.
+// The token from what the person pasted: the whole link (bar encoded or not), or only the token. Null when it is
+// neither, which the plugin reports as a wrong link.
+export function tokenFrom(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return null;
+  let token = text;
+  if (/^https?:/i.test(text)) {
+    let u;
+    try { u = new URL(text); } catch (e) { return null; }
+    if (u.protocol !== "https:" || u.hostname !== "seenr.app" || u.pathname.indexOf(PLEX_PATH) !== 0) return null;
+    token = u.pathname.slice(PLEX_PATH.length).replace(/\/+$/, "");
+  }
+  try { token = decodeURIComponent(token); } catch (e) { return null; }
+  return TOKEN.test(token) ? token : null;
+}
+
+// The webhook URL, or a kino.error the person can act on (shown in the plugin's Ajustes tab).
 function webhook() {
-  const raw = String(kino.config.get("link") || "").trim();
-  if (!raw) throw kino.error("auth_required", "falta tu enlace de Seenr", { userMessage: "Pega tu enlace personal de Seenr en la configuración del plugin." });
-  if (TOKEN_ONLY.test(raw)) return "https://seenr.app/api/v1/scrobble/plex/" + raw;
-  let u;
-  try { u = new URL(raw); } catch (e) { u = null; }
-  const m = u && u.protocol === "https:" && u.hostname === "seenr.app" && SCROBBLE_PATH.exec(u.pathname);
-  if (!m) throw kino.error("invalid_request", "el enlace no es de Seenr", { userMessage: "Ese enlace no es el de Plex de Seenr: cópialo de Ajustes ▸ Auto-tracking ▸ Plex." });
-  return "https://seenr.app/api/v1/scrobble/plex/" + m[1];
+  const raw = kino.config.get("link");
+  const token = tokenFrom(raw);
+  if (!token) {
+    const said = String(raw || "").trim() ? "Ese enlace no es el de Plex de Seenr: cópialo de Ajustes ▸ Auto-tracking ▸ Plex." : "Pega tu enlace personal de Seenr en la configuración del plugin.";
+    throw kino.error("auth_required", "falta un enlace válido de Seenr", { userMessage: said });
+  }
+  return "https://seenr.app" + PLEX_PATH + encodeURIComponent(token);
 }
 
 function guids(ids) {
