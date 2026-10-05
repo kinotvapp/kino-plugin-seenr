@@ -1,16 +1,27 @@
 {
   "id": "seenr",
   "name": "Seenr",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "apiVersion": 7,
   "entry": "plugin.js",
   "description": "Marca en tu cuenta de Seenr lo que empiezas y terminas de ver en Kino. Necesita tu enlace personal de Seenr.",
   "author": "kinotvapp",
   "homepage": "https://github.com/kinotvapp/kino-plugin-seenr",
-  "hosts": ["seenr.app"],
-  "capabilities": ["tracking"],
-  "settings": [
-    { "key": "link", "label": "Tu enlace de Seenr", "type": "password", "required": true, "hint": "En Seenr: Ajustes ▸ Auto-tracking ▸ Plex ▸ copia el enlace" }
+  "hosts": [
+    "seenr.app"
   ],
-  "color": "#7C4DFF"
+  "capabilities": [
+    "tracking"
+  ],
+  "settings": [
+    {
+      "key": "link",
+      "label": "Tu enlace de Seenr",
+      "type": "password",
+      "required": true,
+      "hint": "En Seenr: Ajustes ▸ Auto-tracking ▸ Plex ▸ copia el enlace"
+    }
+  ],
+  "color": "#7C4DFF",
+  "icon": "icon.png"
 }
