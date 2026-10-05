@@ -60,7 +60,8 @@ export function payloadFor(event) {
 
 export async function track(event) {
   const payload = payloadFor(event);
-  if (!payload) return { ok: true };
+  // Nothing Seenr keeps (progress, stop): "skipped", so Kino doesn't take it as proof the link works.
+  if (!payload) return { skipped: true };
   const url = webhook();
   let r;
   try {

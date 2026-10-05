@@ -26,7 +26,7 @@ Plex's webhook JSON.
 | --- | --- |
 | `start` | `media.play` |
 | `watched` (3 min or less left and at least 90% played) | `media.scrobble` |
-| `progress`, `stop` | nothing |
+| `progress`, `stop` | nothing (answered `{ skipped: true }`, so a wrong link's red line stays visible) |
 
 A movie goes with its title, year and `imdb://` / `tmdb://` guids. An **episode** goes with the show's title, season
 and episode numbers, and **its own** ids only: Seenr reads `Guid[]` on an episode as the episode's ids, so the show's
